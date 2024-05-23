@@ -12,12 +12,26 @@ const pool = new Pool({
 const createTables = async () => {
   try {
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL,
+        email VARCHAR(100) NOT NULL UNIQUE,
+        password VARCHAR(255) NOT NULL,
+        phone VARCHAR(15),
+        address TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS items (
         id SERIAL PRIMARY KEY,
         name VARCHAR(100) NOT NULL,
         offered_price DECIMAL(10, 2) NOT NULL,
         description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        owner_id INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (owner_id) REFERENCES clients (id) ON DELETE CASCADE
       );
     `);
 
@@ -26,8 +40,10 @@ const createTables = async () => {
         id SERIAL PRIMARY KEY,
         item_id INTEGER NOT NULL,
         amount DECIMAL(10, 2) NOT NULL,
+        bidder_id INTEGER NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (item_id) REFERENCES items (id)
+        FOREIGN KEY (item_id) REFERENCES items (id) ON DELETE CASCADE,
+        FOREIGN KEY (bidder_id) REFERENCES clients (id) ON DELETE CASCADE
       );
     `);
 

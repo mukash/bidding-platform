@@ -4,6 +4,7 @@ const http = require('http');
 const socket = require('./sockets');
 const itemsRouter = require('./routes/items');
 const bidsRouter = require('./routes/bids');
+const clientRouter = require('./routes/clients');
 
 const app = express();
 const server = http.createServer(app);
@@ -17,6 +18,7 @@ app.use(express.json());
 // Routes
 app.use('/', itemsRouter);
 app.use('/', bidsRouter);
+app.use('/', clientRouter);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {

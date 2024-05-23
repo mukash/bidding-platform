@@ -1,4 +1,4 @@
-const pool = require('./index');
+const pool = require('../../config/index');
 
 // Retrieve all items
 const getItems = async () => {
@@ -23,11 +23,11 @@ const getItemById = async (id) => {
 };
 
 // Create a new item
-const createItem = async (name, description) => {
+const createItem = async (name, offeredPrice, description, ownerId) => {
   try {
     const result = await pool.query(
-      'INSERT INTO items (name, description) VALUES ($1, $2) RETURNING *',
-      [name, description]
+      'INSERT INTO items (name, offered_price, description, owner_id) VALUES ($1, $2, $3, $4) RETURNING *',
+      [name, offeredPrice, description, ownerId]
     );
     return result.rows[0];
   } catch (error) {
@@ -37,11 +37,11 @@ const createItem = async (name, description) => {
 };
 
 // Update an item
-const updateItem = async (id, name, description) => {
+const updateItem = async (id, name, description, offeredPrice) => {
   try {
     const result = await pool.query(
-      'UPDATE items SET name = $1, description = $2 WHERE id = $3 RETURNING *',
-      [name, description, id]
+      'UPDATE items SET name = $1, description = $2, offered_price = $3 WHERE id = $4 RETURNING *',
+      [name, description, offeredPrice, id]
     );
     return result.rows[0];
   } catch (error) {

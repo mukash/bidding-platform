@@ -1,90 +1,114 @@
 const express = require('express');
 const router = express.Router();
-const { getBids, createBid, getBidById, updateBid, deleteBid } = require('../db/bids.queries');
+const { getBids, createBid, getBidById, updateBid, deleteBid,checkItemOwnership } = require('../models/Bids');
+const authenticate = require('../middleware/auth'); // Assuming you have this middleware
+const sendResponse = require('../utils/helperMixin');
 const io = require('../sockets').io;
 
 // Route to get all bids for a specific item
-router.get('/bids/get_all_bids_of_an_item/:itemId', async (req, res) => {
+router.get('/bids/get_all_bids_of_an_item/:itemId', authenticate, async (req, res) => {
   const { itemId } = req.params;
+  const ownerId = req.user.id;
+
   try {
+    // Check if the authenticated user is the owner of the item
+    const itemOwner = await checkItemOwnership(itemId, ownerId);
+    if (!itemOwner) {
+      return sendResponse(res, false, 'Unauthorized', null, 403);
+    }
+
+    // If the user is the owner, proceed to fetch bids
     const bids = await getBids(itemId);
-    res.status(200).json(bids);
+    sendResponse(res, true, 'Bids fetched successfully', bids);
   } catch (error) {
     console.error('Error fetching bids:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    sendResponse(res, false, 'Internal Server Error');
   }
 });
 
 // Route to get a single bid by ID
-router.get('/bids/get_bid/:id', async (req,  res) => {
+router.get('/bids/get_bid/:id', authenticate, async (req, res) => {
   const { id } = req.params;
+  const ownerId = req.user.id; // Assuming the authenticated user's ID is stored in req.user.id
+
   try {
+    // Fetch the bid
     const bid = await getBidById(id);
-    if (bid) {
-      res.status(200).json(bid);
-    } else {
-      res.status(404).json({ error: 'Bid not found' });
+    if (!bid) {
+      return sendResponse(res, false, 'Bid not found', null, 404);
     }
+
+    // Check if the authenticated user is the owner of the item associated with the bid
+    const itemOwner = await checkItemOwnership(bid.item_id, ownerId);
+    if (!itemOwner) {
+      return sendResponse(res, false, 'Unauthorized', null, 403);
+    }
+
+    // If the user is the owner, proceed to return the bid
+    sendResponse(res, true, 'Bid fetched successfully', bid);
   } catch (error) {
     console.error('Error fetching bid:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    sendResponse(res, false, 'Internal Server Error');
   }
 });
 
 // Route to create a new bid
-router.post('/bids/create_bid', async (req, res) => {
+router.post('/bids/create_bid', authenticate, async (req, res) => {
   const { itemId, amount } = req.body;
+  const bidderId = req.user.id; // Assuming the authenticate middleware sets req.user
   if (!itemId || !amount) {
-    return res.status(400).json({ error: 'Item ID and amount are required' });
+    return sendResponse(res, false, 'Item ID and amount are required', null, 400);
   }
 
   try {
-    const newBid = await createBid(itemId, amount);
-
-    // Emit the new bid to all connected clients
-    io.emit('bid placed', newBid);
-
-    res.status(201).json(newBid);
+    const newBid = await createBid(itemId, amount, bidderId);
+    // io.emit('bid placed', newBid);
+    sendResponse(res, true, 'Bid created successfully', newBid, 201);
   } catch (error) {
+    console.log(error);
+    if (error.message === 'You cannot bid on your own item') {
+      return sendResponse(res, false, error.message, null, 400); // Send the specific error message to the user
+    }
     console.error('Error creating bid:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    sendResponse(res, false, 'Internal Server Error');
   }
 });
+
 
 // Route to update a bid
 router.put('/bids/update_bid/:id', async (req, res) => {
   const { id } = req.params;
   const { amount } = req.body;
   if (!amount) {
-    return res.status(400).json({ error: 'Amount is required' });
+    return sendResponse(res, false, 'Amount is required', null, 400);
   }
 
   try {
     const updatedBid = await updateBid(id, amount);
     if (updatedBid) {
-      res.status(200).json(updatedBid);
+      sendResponse(res, true, 'Bid updated successfully', updatedBid);
     } else {
-      res.status(404).json({ error: 'Bid not found' });
+      sendResponse(res, false, 'Bid not found', null, 404);
     }
   } catch (error) {
     console.error('Error updating bid:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    sendResponse(res, false, 'Internal Server Error');
   }
 });
 
 // Route to delete a bid
-router.delete('/bids/delete_bit/:id', async (req, res) => {
+router.delete('/bids/delete_bid/:id', async (req, res) => {
   const { id } = req.params;
   try {
     const deletedBid = await deleteBid(id);
     if (deletedBid) {
-      res.status(200).json(deletedBid);
+      sendResponse(res, true, 'Bid deleted successfully', deletedBid);
     } else {
-      res.status(404).json({ error: 'Bid not found' });
+      sendResponse(res, false, 'Bid not found', null, 404);
     }
   } catch (error) {
     console.error('Error deleting bid:', error);
-    res.status(500).json({ error: 'Internal Server Error' });
+    sendResponse(res, false, 'Internal Server Error');
   }
 });
 
