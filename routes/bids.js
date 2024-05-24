@@ -3,7 +3,6 @@ const router = express.Router();
 const { getBids, createBid, getBidById, updateBid, deleteBid,checkItemOwnership } = require('../models/Bids');
 const authenticate = require('../middleware/auth'); // Assuming you have this middleware
 const sendResponse = require('../utils/helperMixin');
-const io = require('../sockets').io;
 
 // Route to get all bids for a specific item
 router.get('/bids/get_all_bids_of_an_item/:itemId', authenticate, async (req, res) => {
